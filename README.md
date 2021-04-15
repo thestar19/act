@@ -45,7 +45,7 @@ Alternatively, you can use the following:
 curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
 ```
 
-If you are running Windows, download the [latest release](https://github.com/nektos/act/releases/latest) and add the binary into your PATH.
+If you are running on Windows, download the [latest release](https://github.com/nektos/act/releases/latest) and add the binary into your PATH.
 If you are using [Chocolatey](https://chocolatey.org/) then run:
 
 [![choco-shield](https://img.shields.io/chocolatey/v/act-cli)](https://community.chocolatey.org/packages/act-cli)
