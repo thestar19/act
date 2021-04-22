@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -50,6 +51,45 @@ func (r *Run) Job() *Job {
 	return r.Workflow.GetJob(r.JobID)
 }
 
+// PrepareFile initializes a tmp yml file in order to maintain quotes for if statements.
+func PrepareFile(path string, name string) (*os.File, error, string) {
+	content, err := os.ReadFile(filepath.Join(path, name))
+	if err != nil {
+		return nil, err, name
+	}
+	result := content
+	lines := regexp.MustCompile(`\n\s+if:\s+".*".*\n`).FindAllString(string(result), -1)
+	if len(lines) == 0 {
+		f, err := os.Open(filepath.Join(path, name))
+		return f, err, name
+	}
+	name = "tmp.yml" // Temporary file used (comment this out changes the )
+	f, err := os.Create(filepath.Join(path, name))
+	if err != nil {
+		return nil, err, name
+	}
+	err = ioutil.WriteFile(filepath.Join(path, name), []byte(content), 0)
+	if err != nil {
+		return nil, err, name
+	}
+	newContents := string(content)
+	for _, line := range lines {
+
+		lines := regexp.MustCompile(`\s+`).Split(line, 3)
+		lines = regexp.MustCompile(`\r`).Split(lines[2], 2)
+		line = regexp.MustCompile(`^"`).ReplaceAllString(lines[0], "\\\"")
+		line = regexp.MustCompile(".$").ReplaceAllString(line, "\\\"\"\n")
+
+		newContents = strings.Replace(string(content), lines[0], "\""+line, -1)
+		err = ioutil.WriteFile(filepath.Join(path, name), []byte(newContents), 0)
+		if err != nil {
+			return nil, err, name
+		}
+	}
+
+	return f, nil, name
+}
+
 // NewWorkflowPlanner will load a specific workflow or all workflows from a directory
 func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 	fi, err := os.Stat(path)
@@ -77,14 +117,20 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 	for _, file := range files {
 		ext := filepath.Ext(file.Name())
 		if ext == ".yml" || ext == ".yaml" {
-			f, err := os.Open(filepath.Join(dirname, file.Name()))
+
+			log.Debugf("Preparing file '%s'", file.Name())
+			f, err, fileName := PrepareFile(dirname, file.Name())
+
 			if err != nil {
+				os.Remove(filepath.Join(path, "tmp.yml"))
 				return nil, err
 			}
 
-			log.Debugf("Reading workflow '%s'", f.Name())
+			log.Debugf("Reading workflow '%s'", file.Name())
 			workflow, err := ReadWorkflow(f)
+
 			if err != nil {
+				os.Remove(filepath.Join(path, "tmp.yml"))
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", file.Name())
@@ -92,20 +138,25 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 				return nil, err
 			}
 			if workflow.Name == "" {
-				workflow.Name = file.Name()
+				workflow.Name = fileName
 			}
 			jobNameRegex := regexp.MustCompile(`^([[:alpha:]_][[:alnum:]_\-]*)$`)
 			for k := range workflow.Jobs {
 				if ok := jobNameRegex.MatchString(k); !ok {
+					os.Remove(filepath.Join(path, "tmp.yml"))
 					return nil, fmt.Errorf("The workflow is not valid. %s: Job name %s is invalid. Names must start with a letter or '_' and contain only alphanumeric characters, '-', or '_'", workflow.Name, k)
 				}
+
 			}
 			wp.workflows = append(wp.workflows, workflow)
+
 			f.Close()
+			os.Remove(filepath.Join(path, "tmp.yml"))
 		}
 	}
 
 	return wp, nil
+
 }
 
 type workflowPlanner struct {
