@@ -123,12 +123,15 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 		if ext == ".yml" || ext == ".yaml" {
 			f, err := os.Open(filepath.Join(wf.dirPath, wf.workflowFileInfo.Name()))
 			if err != nil {
+				os.Remove(filepath.Join(path, "tmp.yml"))
 				return nil, err
 			}
 
-			log.Debugf("Reading workflow '%s'", f.Name())
+			log.Debugf("Reading workflow '%s'", wf.workflowFileInfo.Name())
 			workflow, err := ReadWorkflow(f)
+
 			if err != nil {
+				os.Remove(filepath.Join(path, "tmp.yml"))
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", wf.workflowFileInfo.Name())
@@ -145,14 +148,18 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 				if ok := jobNameRegex.MatchString(k); !ok {
 					return nil, fmt.Errorf("workflow is not valid. '%s': Job name '%s' is invalid. Names must start with a letter or '_' and contain only alphanumeric characters, '-', or '_'", workflow.Name, k)
 				}
+
 			}
 
 			wp.workflows = append(wp.workflows, workflow)
+
 			f.Close()
+			os.Remove(filepath.Join(path, "tmp.yml"))
 		}
 	}
 
 	return wp, nil
+
 }
 
 type workflowPlanner struct {
