@@ -172,7 +172,7 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 	for _, wf := range workflows {
 		ext := filepath.Ext(wf.workflowFileInfo.Name())
 		if ext == ".yml" || ext == ".yaml" {
-			f, err := os.Open(filepath.Join(dirname, file.Name()))
+			f, err := os.Open(filepath.Join(wf.dirPath, wf.workflowFileInfo.Name()))
 
 			if err != nil {
 				return nil, err
