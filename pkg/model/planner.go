@@ -62,7 +62,6 @@ func FixIfStatement1(val string, currentRow int, reader *bufio.Reader, l int) (s
 			}
 			if l == row {
 				outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindString(line)
-				fmt.Println(outcome)
 				if outcome != "" {
 
 					outcome := regexp.MustCompile(`".*"`).FindString(line)
