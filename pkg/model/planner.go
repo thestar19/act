@@ -123,15 +123,15 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 		if ext == ".yml" || ext == ".yaml" {
 			f, err := os.Open(filepath.Join(wf.dirPath, wf.workflowFileInfo.Name()))
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp.yml"))
+				os.Remove(filepath.Join(path, "tmp"+wf.workflowFileInfo.Name()))
 				return nil, err
 			}
 
-			log.Debugf("Reading workflow '%s'", wf.workflowFileInfo.Name())
+			log.Debugf("Reading workflow '%s'", f.Name())
 			workflow, err := ReadWorkflow(f)
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp.yml"))
+				os.Remove(filepath.Join(path, "tmp"+wf.workflowFileInfo.Name()))
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", wf.workflowFileInfo.Name())
@@ -154,7 +154,7 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			wp.workflows = append(wp.workflows, workflow)
 
 			f.Close()
-			os.Remove(filepath.Join(path, "tmp.yml"))
+
 		}
 	}
 
