@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -51,41 +51,52 @@ func (r *Run) Job() *Job {
 	return r.Workflow.GetJob(r.JobID)
 }
 
-// PrepareFile initializes a tmp yml file in order to maintain quotes for if statements.
-func PrepareFile(path string, name string) (*os.File, error, string) {
-	content, err := os.ReadFile(filepath.Join(path, name))
-	if err != nil {
-		return nil, err, name
-	}
-	result := content
-	lines := regexp.MustCompile(`\n\s+if:\s+".*".*\n`).FindAllString(string(result), -1)
-	if len(lines) == 0 {
-		f, err := os.Open(filepath.Join(path, name))
-		return f, err, name
-	}
+// Helper function for FixIfstatement
+func FixIfStatement1(val string, currentRow int, reader *bufio.Reader, l int) (string, int, error) {
+	if val != "" {
+		for row := currentRow; row > 0; row++ {
+			line, err := reader.ReadString('\n')
+			currentRow = row
+			if err != nil && err != io.EOF {
+				break
+			}
+			if l == row {
+				outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindString(line)
+				if outcome != "" {
 
-	name = "tmp" + name // Temporary file used (comment this out changes the )
-	f, err := os.Create(filepath.Join(path, name))
-	if err != nil {
-		return nil, err, name
-	}
-	err = ioutil.WriteFile(filepath.Join(path, name), []byte(content), 0)
-	if err != nil {
-		return nil, err, name
-	}
-	newContents := string(content)
-	for _, line := range lines {
+					outcome := regexp.MustCompile(`".*"`).FindString(line)
+					oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(outcome, 2)
+					val = "\"" + oldLine[0][1] + "\""
+				}
+				currentRow++
+				break
 
-		oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(line, 2)
-		newContents = strings.Replace(string(newContents), oldLine[0][1], "\\\""+oldLine[0][1]+"\\\"", -1)
-
-		err = ioutil.WriteFile(filepath.Join(path, name), []byte(newContents), 0)
-		if err != nil {
-			return nil, err, name
+			}
 		}
 	}
+	return val, currentRow, nil
+}
 
-	return f, nil, name
+// Fixes faulty if statements from decoder
+func FixIfStatement(f *os.File, wr *Workflow) error {
+	jobs := wr.Jobs
+	reader := bufio.NewReader(f)
+	currentRow := 1
+	for j := range jobs {
+		val, currentRow, err := FixIfStatement1(jobs[j].If.Value, currentRow, reader, jobs[j].If.Line)
+		if err != nil {
+			return err
+		}
+		jobs[j].If.Value = val
+		for i := range jobs[j].Steps {
+			val, currentRow, err = FixIfStatement1(jobs[j].Steps[i].If.Value, currentRow, reader, jobs[j].Steps[i].If.Line)
+			if err != nil {
+				return err
+			}
+			jobs[j].Steps[i].If.Value = val
+		}
+	}
+	return nil
 }
 
 // NewWorkflowPlanner will load a specific workflow or all workflows from a directory
@@ -115,12 +126,9 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 	for _, file := range files {
 		ext := filepath.Ext(file.Name())
 		if ext == ".yml" || ext == ".yaml" {
-
-			log.Debugf("Preparing file '%s'", file.Name())
-			f, err, fileName := PrepareFile(dirname, file.Name())
+			f, err := os.Open(filepath.Join(dirname, file.Name()))
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp"+file.Name()))
 				return nil, err
 			}
 
@@ -128,20 +136,32 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			workflow, err := ReadWorkflow(f)
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp"+file.Name()))
+
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", file.Name())
 				}
 				return nil, err
 			}
+			_, err = f.Seek(0, 0)
+			if err != nil {
+				f.Close()
+				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", file.Name())
+			}
+			log.Debugf("Correcting if statements '%s'", file.Name())
+			err = FixIfStatement(f, workflow)
+			if err != nil {
+				f.Close()
+				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", file.Name())
+
+			}
+
 			if workflow.Name == "" {
-				workflow.Name = fileName
+				workflow.Name = file.Name()
 			}
 			jobNameRegex := regexp.MustCompile(`^([[:alpha:]_][[:alnum:]_\-]*)$`)
 			for k := range workflow.Jobs {
 				if ok := jobNameRegex.MatchString(k); !ok {
-					os.Remove(filepath.Join(path, "tmp"+file.Name()))
 					return nil, fmt.Errorf("The workflow is not valid. %s: Job name %s is invalid. Names must start with a letter or '_' and contain only alphanumeric characters, '-', or '_'", workflow.Name, k)
 				}
 
@@ -149,7 +169,7 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			wp.workflows = append(wp.workflows, workflow)
 
 			f.Close()
-			os.Remove(filepath.Join(path, "tmp"+file.Name()))
+
 		}
 	}
 
