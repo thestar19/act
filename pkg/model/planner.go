@@ -61,17 +61,10 @@ func FixIfStatement1(val string, currentRow int, reader *bufio.Reader, l int) (s
 				break
 			}
 			if l == row {
-				re, er := regexp.Compile(`\s+if:\s+".*".*`)
-				if er != nil {
-					return val, currentRow, er
-				}
-				outcome := re.FindString(line)
+				outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindString(line)
 				if outcome != "" {
-					re, er := regexp.Compile(`".*"`)
-					if er != nil {
-						return val, currentRow, er
-					}
-					outcome := re.FindString(line)
+
+					outcome := regexp.MustCompile(`".*"`).FindString(line)
 					oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(outcome, 2)
 					val = "\"" + oldLine[0][1] + "\""
 				}
@@ -150,7 +143,11 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 				}
 				return nil, err
 			}
-			f.Seek(0, 0)
+			_, err = f.Seek(0, 0)
+			if err != nil {
+				f.Close()
+				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", file.Name())
+			}
 			log.Debugf("Correcting if statements '%s'", file.Name())
 			err = FixIfStatement(f, workflow)
 			if err != nil {
