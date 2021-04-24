@@ -60,7 +60,7 @@ type Job struct {
 	RawNeeds       yaml.Node                 `yaml:"needs"`
 	RawRunsOn      yaml.Node                 `yaml:"runs-on"`
 	Env            map[string]string         `yaml:"env"`
-	If             string                    `yaml:"if"`
+	If             yaml.Node                 `yaml:"if"`
 	Steps          []*Step                   `yaml:"steps"`
 	TimeoutMinutes int64                     `yaml:"timeout-minutes"`
 	Services       map[string]*ContainerSpec `yaml:"services"`
@@ -215,7 +215,7 @@ type ContainerSpec struct {
 // Step is the structure of one step in a job
 type Step struct {
 	ID               string            `yaml:"id"`
-	If               string            `yaml:"if"`
+	If               yaml.Node         `yaml:"if"`
 	Name             string            `yaml:"name"`
 	Uses             string            `yaml:"uses"`
 	Run              string            `yaml:"run"`
@@ -313,12 +313,12 @@ func (s *Step) Type() StepType {
 }
 
 func (s *Step) Validate() error {
-    if s.Type() != StepTypeRun {
-        return fmt.Errorf("(StepID: %s): Unexpected value 'uses'", s.String())
-    } else if s.Shell == "" {
-        return fmt.Errorf("(StepID: %s): Required property is missing: 'shell'", s.String())
-    }
-    return nil
+	if s.Type() != StepTypeRun {
+		return fmt.Errorf("(StepID: %s): Unexpected value 'uses'", s.String())
+	} else if s.Shell == "" {
+		return fmt.Errorf("(StepID: %s): Required property is missing: 'shell'", s.String())
+	}
+	return nil
 }
 
 // ReadWorkflow returns a list of jobs for a given workflow file reader
