@@ -63,7 +63,8 @@ func PrepareFile(path string, name string) (*os.File, error, string) {
 		f, err := os.Open(filepath.Join(path, name))
 		return f, err, name
 	}
-	name = "tmp.yml" // Temporary file used (comment this out changes the )
+
+	name = "tmp" + name // Temporary file used (comment this out changes the )
 	f, err := os.Create(filepath.Join(path, name))
 	if err != nil {
 		return nil, err, name
@@ -75,12 +76,9 @@ func PrepareFile(path string, name string) (*os.File, error, string) {
 	newContents := string(content)
 	for _, line := range lines {
 
-		lines := regexp.MustCompile(`\s+`).Split(line, 3)
-		lines = regexp.MustCompile(`\r`).Split(lines[2], 2)
-		line = regexp.MustCompile(`^"`).ReplaceAllString(lines[0], "\\\"")
-		line = regexp.MustCompile(".$").ReplaceAllString(line, "\\\"\"\n")
+		oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(line, 2)
+		newContents = strings.Replace(string(newContents), oldLine[0][1], "\\\""+oldLine[0][1]+"\\\"", -1)
 
-		newContents = strings.Replace(string(content), lines[0], "\""+line, -1)
 		err = ioutil.WriteFile(filepath.Join(path, name), []byte(newContents), 0)
 		if err != nil {
 			return nil, err, name
@@ -122,7 +120,7 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			f, err, fileName := PrepareFile(dirname, file.Name())
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp.yml"))
+				os.Remove(filepath.Join(path, "tmp"+file.Name()))
 				return nil, err
 			}
 
@@ -130,7 +128,7 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			workflow, err := ReadWorkflow(f)
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp.yml"))
+				os.Remove(filepath.Join(path, "tmp"+file.Name()))
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", file.Name())
@@ -143,7 +141,7 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			jobNameRegex := regexp.MustCompile(`^([[:alpha:]_][[:alnum:]_\-]*)$`)
 			for k := range workflow.Jobs {
 				if ok := jobNameRegex.MatchString(k); !ok {
-					os.Remove(filepath.Join(path, "tmp.yml"))
+					os.Remove(filepath.Join(path, "tmp"+file.Name()))
 					return nil, fmt.Errorf("The workflow is not valid. %s: Job name %s is invalid. Names must start with a letter or '_' and contain only alphanumeric characters, '-', or '_'", workflow.Name, k)
 				}
 
@@ -151,7 +149,7 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			wp.workflows = append(wp.workflows, workflow)
 
 			f.Close()
-			os.Remove(filepath.Join(path, "tmp.yml"))
+			os.Remove(filepath.Join(path, "tmp"+file.Name()))
 		}
 	}
 
