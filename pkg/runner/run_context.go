@@ -212,8 +212,19 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 			Success: true,
 			Outputs: make(map[string]string),
 		}
+<<<<<<< HEAD
 		runStep, err := rc.EvalBool(sc.Step.If)
 
+=======
+
+		exprEval, err := sc.setupEnv(ctx)
+		if err != nil {
+			return err
+		}
+		rc.ExprEval = exprEval
+
+		runStep, err := rc.EvalBool(sc.Step.If.Value)
+>>>>>>> 379a106 (Changed double quotes to ${{}} and added tests to make sure that it works properly)
 		if err != nil {
 			common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", sc.Step)
 			exprEval, err := sc.setupEnv(ctx)
@@ -226,7 +237,7 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 		}
 
 		if !runStep {
-			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If)
+			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If.Value)
 			return nil
 		}
 
@@ -281,13 +292,13 @@ func (rc *RunContext) platformImage() string {
 func (rc *RunContext) isEnabled(ctx context.Context) bool {
 	job := rc.Run.Job()
 	l := common.Logger(ctx)
-	runJob, err := rc.EvalBool(job.If)
+	runJob, err := rc.EvalBool(job.If.Value)
 	if err != nil {
 		common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", job.Name)
 		return false
 	}
 	if !runJob {
-		l.Debugf("Skipping job '%s' due to '%s'", job.Name, job.If)
+		l.Debugf("Skipping job '%s' due to '%s'", job.Name, job.If.Value)
 		return false
 	}
 

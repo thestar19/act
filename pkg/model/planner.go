@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -50,6 +51,56 @@ func (r *Run) Job() *Job {
 	return r.Workflow.GetJob(r.JobID)
 }
 
+// Helper function for FixIfstatement
+func FixIfStatement1(val string, currentRow int, reader *bufio.Reader, l int) (string, int, error) {
+	if val != "" {
+		for row := currentRow; row > 0; row++ {
+			line, err := reader.ReadString('\n')
+			currentRow = row
+			if err != nil && err != io.EOF {
+				break
+			}
+			if l == row {
+				outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindString(line)
+				fmt.Println(outcome)
+				if outcome != "" {
+
+					outcome := regexp.MustCompile(`".*"`).FindString(line)
+					oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(outcome, 2)
+					val = "${{" + oldLine[0][1] + "}}"
+				}
+				currentRow++
+				break
+
+			}
+		}
+	}
+	return val, currentRow, nil
+}
+
+// Fixes faulty if statements from decoder
+func FixIfStatement(f *os.File, wr *Workflow) error {
+	jobs := wr.Jobs
+	reader := bufio.NewReader(f)
+	currentRow := 1
+	for j := range jobs {
+		val, currentRow, err := FixIfStatement1(jobs[j].If.Value, currentRow, reader, jobs[j].If.Line)
+		if err != nil {
+			return err
+		}
+		jobs[j].If.Value = val
+		for i := range jobs[j].Steps {
+			val, currentRow, err = FixIfStatement1(jobs[j].Steps[i].If.Value, currentRow, reader, jobs[j].Steps[i].If.Line)
+			if err != nil {
+				return err
+			}
+			jobs[j].Steps[i].If.Value = val
+		}
+	}
+	return nil
+}
+
+// NewWorkflowPlanner will load a specific workflow or all workflows from a directory
 type WorkflowFiles struct {
 	workflowFileInfo os.FileInfo
 	dirPath          string
@@ -121,9 +172,9 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 	for _, wf := range workflows {
 		ext := filepath.Ext(wf.workflowFileInfo.Name())
 		if ext == ".yml" || ext == ".yaml" {
-			f, err := os.Open(filepath.Join(wf.dirPath, wf.workflowFileInfo.Name()))
+			f, err := os.Open(filepath.Join(dirname, file.Name()))
+
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp"+wf.workflowFileInfo.Name()))
 				return nil, err
 			}
 
@@ -131,16 +182,28 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			workflow, err := ReadWorkflow(f)
 
 			if err != nil {
-				os.Remove(filepath.Join(path, "tmp"+wf.workflowFileInfo.Name()))
 				f.Close()
 				if err == io.EOF {
 					return nil, errors.WithMessagef(err, "unable to read workflow, %s file is empty", wf.workflowFileInfo.Name())
 				}
 				return nil, err
 			}
+			_, err = f.Seek(0, 0)
+			if err != nil {
+				f.Close()
+				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", wf.workflowFileInfo.Name())
+			}
+			log.Debugf("Correcting if statements '%s'", f.Name())
+			err = FixIfStatement(f, workflow)
+
+			if err != nil {
+				f.Close()
+				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", wf.workflowFileInfo.Name())
+
+			}
 
 			if workflow.Name == "" {
-				workflow.Name = wf.workflowFileInfo.Name()
+				workflow.Name = f.Name()
 			}
 
 			jobNameRegex := regexp.MustCompile(`^([[:alpha:]_][[:alnum:]_\-]*)$`)
