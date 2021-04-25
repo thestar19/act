@@ -1,0 +1,29 @@
+name: issue-597
+on: push
+  
+
+jobs:
+  my_first_job:
+    
+    runs-on: ubuntu-latest
+    steps:
+      - name: My first false step
+        if: endsWith('Hello world', 'o1')
+        uses: actions/hello-world-javascript-action@main
+        with:
+          who-to-greet: "SHOULD NOT BE TRUE"
+      - name: My first true step
+        if: "!endsWith('Hello world', 'od')"
+        uses: actions/hello-world-javascript-action@main
+        with:
+          who-to-greet: "Mona the Octocats"
+      - name: My second false step
+        if: "endsWith('Hello world', 'o2')"
+        uses: actions/hello-world-javascript-action@main
+        with:
+          who-to-greet: "SHOULD NOT BE TRUE"
+      - name: My third false step
+        if: ${{endsWith('Hello world', 'o3')}}
+        uses: actions/hello-world-javascript-action@main
+        with:
+          who-to-greet: "SHOULD NOT BE TRUE"
