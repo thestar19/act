@@ -223,14 +223,14 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 		}
 		rc.ExprEval = exprEval
 
-		runStep, err := rc.EvalBool(sc.Step.If)
+		runStep, err := rc.EvalBool(sc.Step.If.Value)
 		if err != nil {
 			common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", sc.Step)
 			rc.StepResults[rc.CurrentStep].Success = false
 			return err
 		}
 		if !runStep {
-			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If)
+			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If.Value)
 			return nil
 		}
 
@@ -279,13 +279,13 @@ func (rc *RunContext) platformImage() string {
 func (rc *RunContext) isEnabled(ctx context.Context) bool {
 	job := rc.Run.Job()
 	l := common.Logger(ctx)
-	runJob, err := rc.EvalBool(job.If)
+	runJob, err := rc.EvalBool(job.If.Value)
 	if err != nil {
 		common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", job.Name)
 		return false
 	}
 	if !runJob {
-		l.Debugf("Skipping job '%s' due to '%s'", job.Name, job.If)
+		l.Debugf("Skipping job '%s' due to '%s'", job.Name, job.If.Value)
 		return false
 	}
 
