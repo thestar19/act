@@ -151,7 +151,6 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 			}
 			log.Debugf("Correcting if statements '%s'", file.Name())
 			err = FixIfStatement(f, workflow)
-
 			if err != nil {
 				f.Close()
 				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", file.Name())
