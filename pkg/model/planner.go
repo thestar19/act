@@ -1,7 +1,6 @@
 package model
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -52,45 +51,30 @@ func (r *Run) Job() *Job {
 }
 
 // Helper function for FixIfstatement
-func FixIfStatement1(val string, currentRow int, reader *bufio.Reader, l int) (string, int, error) {
+func FixIfStatement1(val string, lines [][][]byte, l int) (string, error) {
 	if val != "" {
-		for row := currentRow; row > 0; row++ {
-			line, err := reader.ReadString('\n')
-			currentRow = row
-			if err != nil && err != io.EOF {
-				break
-			}
-			if l == row {
-				outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindString(line)
-				fmt.Println(outcome)
-				if outcome != "" {
-
-					outcome := regexp.MustCompile(`".*"`).FindString(line)
-					oldLine := regexp.MustCompile(`"(.*?)"`).FindAllStringSubmatch(outcome, 2)
-					val = "${{" + oldLine[0][1] + "}}"
-				}
-				currentRow++
-				break
-
-			}
+		line := lines[l-1][0]
+		outcome := regexp.MustCompile(`\s+if:\s+".*".*`).FindSubmatch(line)
+		if outcome != nil {
+			oldLines := regexp.MustCompile(`"(.*?)"`).FindAllSubmatch(line, 2)
+			val = "${{" + string(oldLines[0][1]) + "}}"
 		}
 	}
-	return val, currentRow, nil
+	return val, nil
 }
 
 // Fixes faulty if statements from decoder
-func FixIfStatement(f *os.File, wr *Workflow) error {
+func FixIfStatement(content []byte, wr *Workflow) error {
 	jobs := wr.Jobs
-	reader := bufio.NewReader(f)
-	currentRow := 1
+	lines := regexp.MustCompile(".*\n|.+$").FindAllSubmatch(content, -1)
 	for j := range jobs {
-		val, currentRow, err := FixIfStatement1(jobs[j].If.Value, currentRow, reader, jobs[j].If.Line)
+		val, err := FixIfStatement1(jobs[j].If.Value, lines, jobs[j].If.Line)
 		if err != nil {
 			return err
 		}
 		jobs[j].If.Value = val
 		for i := range jobs[j].Steps {
-			val, currentRow, err = FixIfStatement1(jobs[j].Steps[i].If.Value, currentRow, reader, jobs[j].Steps[i].If.Line)
+			val, err = FixIfStatement1(jobs[j].Steps[i].If.Value, lines, jobs[j].Steps[i].If.Line)
 			if err != nil {
 				return err
 			}
@@ -150,7 +134,12 @@ func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", file.Name())
 			}
 			log.Debugf("Correcting if statements '%s'", file.Name())
-			err = FixIfStatement(f, workflow)
+			content, err := ioutil.ReadFile(filepath.Join(dirname, file.Name()))
+			if err != nil {
+				return nil, err
+			}
+
+			err = FixIfStatement(content, workflow)
 			if err != nil {
 				f.Close()
 				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", file.Name())
