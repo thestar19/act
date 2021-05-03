@@ -85,7 +85,6 @@ func FixIfStatement(content []byte, wr *Workflow) error {
 }
 
 // NewWorkflowPlanner will load a specific workflow or all workflows from a directory
-func NewWorkflowPlanner(path string) (WorkflowPlanner, error) {
 
 type WorkflowFiles struct {
 	workflowFileInfo os.FileInfo
@@ -163,7 +162,7 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 				return nil, err
 			}
 
-			log.Debugf("Reading workflow '%s'", file.Name())
+			log.Debugf("Reading workflow '%s'", f.Name())
 			workflow, err := ReadWorkflow(f)
 
 			if err != nil {
@@ -177,9 +176,9 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			_, err = f.Seek(0, 0)
 			if err != nil {
 				f.Close()
-				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", file.Name())
+				return nil, errors.WithMessagef(err, "error occuring when resetting io pointer, %s", wf.workflowFileInfo.Name())
 			}
-			log.Debugf("Correcting if statements '%s'", file.Name())
+			log.Debugf("Correcting if statements '%s'", f.Name())
 			content, err := ioutil.ReadFile(filepath.Join(wf.dirPath, wf.workflowFileInfo.Name()))
 			if err != nil {
 				return nil, err
@@ -188,13 +187,8 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			err = FixIfStatement(content, workflow)
 			if err != nil {
 				f.Close()
-				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", file.Name())
+				return nil, errors.WithMessagef(err, "error occuring when fixing if statement, %s", wf.workflowFileInfo.Name())
 
-			}
-
-
-			if workflow.Name == "" {
-				workflow.Name = wf.workflowFileInfo.Name()
 			}
 
 			jobNameRegex := regexp.MustCompile(`^([[:alpha:]_][[:alnum:]_\-]*)$`)
@@ -208,8 +202,8 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			wp.workflows = append(wp.workflows, workflow)
 
 			f.Close()
-
 		}
+
 	}
 
 	return wp, nil
