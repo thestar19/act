@@ -226,7 +226,7 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 			return err
 		}
 		if !runStep {
-			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If.Value)
+			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.Name, sc.Step.If.Value)
 			return nil
 		}
 
