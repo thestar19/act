@@ -41,6 +41,7 @@ type TestJobFileInfo struct {
 }
 
 func runTestJobFile(ctx context.Context, t *testing.T, tjfi TestJobFileInfo) {
+	fmt.Println("FUCKTHfaahdklahsdalkj")
 	t.Run(tjfi.workflowPath, func(t *testing.T) {
 		workdir, err := filepath.Abs(tjfi.workdir)
 		assert.NilError(t, err, workdir)
@@ -87,7 +88,7 @@ func TestRunEvent(t *testing.T) {
 		{"testdata", "uses-docker-url", "push", "", platforms, ""},
 		{"testdata", "remote-action-docker", "push", "", platforms, ""},
 		{"testdata", "remote-action-js", "push", "", platforms, ""},
-		{"testdata", "local-action-docker-url", "push", "", platforms, ""},
+		{"testdata", "local-action-docker-url", "push", "", platforms, ""},*/
 		{"testdata", "local-action-dockerfile", "push", "", platforms, ""},
 		{"testdata", "local-action-js", "push", "", platforms, ""},
 		{"testdata", "matrix", "push", "", platforms, ""},
