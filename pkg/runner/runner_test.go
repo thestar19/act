@@ -88,7 +88,7 @@ func TestRunEvent(t *testing.T) {
 		{"testdata", "uses-docker-url", "push", "", platforms, ""},
 		{"testdata", "remote-action-docker", "push", "", platforms, ""},
 		{"testdata", "remote-action-js", "push", "", platforms, ""},
-		{"testdata", "local-action-docker-url", "push", "", platforms, ""},*/
+		{"testdata", "local-action-docker-url", "push", "", platforms, ""},
 		{"testdata", "local-action-dockerfile", "push", "", platforms, ""},
 		{"testdata", "local-action-js", "push", "", platforms, ""},
 		{"testdata", "matrix", "push", "", platforms, ""},
