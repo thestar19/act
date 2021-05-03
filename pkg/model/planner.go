@@ -205,8 +205,8 @@ func NewWorkflowPlanner(path string, noWorkflowRecurse bool) (WorkflowPlanner, e
 			wp.workflows = append(wp.workflows, workflow)
 
 			f.Close()
-
 		}
+
 	}
 
 	return wp, nil

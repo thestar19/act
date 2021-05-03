@@ -212,7 +212,7 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 			Success: true,
 			Outputs: make(map[string]string),
 		}
-		runStep, err := rc.EvalBool(sc.Step.If)
+		runStep, err := rc.EvalBool(sc.Step.If.Value)
 
 		exprEval, err := sc.setupEnv(ctx)
 		if err != nil {
