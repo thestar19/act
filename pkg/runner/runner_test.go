@@ -41,7 +41,7 @@ type TestJobFileInfo struct {
 }
 
 func runTestJobFile(ctx context.Context, t *testing.T, tjfi TestJobFileInfo) {
-	fmt.Println("FUCKTHfaahdklahsdalkj")
+
 	t.Run(tjfi.workflowPath, func(t *testing.T) {
 		workdir, err := filepath.Abs(tjfi.workdir)
 		assert.NilError(t, err, workdir)
