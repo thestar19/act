@@ -41,7 +41,6 @@ type TestJobFileInfo struct {
 }
 
 func runTestJobFile(ctx context.Context, t *testing.T, tjfi TestJobFileInfo) {
-
 	t.Run(tjfi.workflowPath, func(t *testing.T) {
 		workdir, err := filepath.Abs(tjfi.workdir)
 		assert.NilError(t, err, workdir)
@@ -97,9 +96,11 @@ func TestRunEvent(t *testing.T) {
 		{"testdata", "workdir", "push", "", platforms, ""},
 		{"testdata", "defaults-run", "push", "", platforms, ""},
 		{"testdata", "uses-composite", "push", "", platforms, ""},
+		{"testdata", "issue-597", "push", "", platforms, ""},
 		{"testdata", "issue-598", "push", "", platforms, ""},
 		// {"testdata", "powershell", "push", "", platforms, ""}, // Powershell is not available on default act test runner (yet) but preserving here for posterity
 		// {"testdata", "issue-228", "push", "", platforms, ""}, // TODO [igni]: Remove this once everything passes
+
 		// single test for different architecture: linux/arm64
 		{"testdata", "basic", "push", "", platforms, "linux/arm64"},
 	}
