@@ -212,23 +212,29 @@ func (rc *RunContext) newStepExecutor(step *model.Step) common.Executor {
 			Success: true,
 			Outputs: make(map[string]string),
 		}
+		runStep, err := rc.EvalBool(sc.Step.If.Value)
+
+		if err != nil {
+			common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", sc.Step)
+			exprEval, err := sc.setupEnv(ctx)
+			if err != nil {
+				return err
+			}
+			rc.ExprEval = exprEval
+			rc.StepResults[rc.CurrentStep].Success = false
+			return err
+		}
+
+		if !runStep {
+			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If.Value)
+			return nil
+		}
 
 		exprEval, err := sc.setupEnv(ctx)
 		if err != nil {
 			return err
 		}
 		rc.ExprEval = exprEval
-
-		runStep, err := rc.EvalBool(sc.Step.If.Value)
-		if err != nil {
-			common.Logger(ctx).Errorf("  \u274C  Error in if: expression - %s", sc.Step)
-			rc.StepResults[rc.CurrentStep].Success = false
-			return err
-		}
-		if !runStep {
-			log.Debugf("Skipping step '%s' due to '%s'", sc.Step.String(), sc.Step.If.Value)
-			return nil
-		}
 
 		common.Logger(ctx).Infof("\u2B50  Run %s", sc.Step)
 		err = sc.Executor()(ctx)
@@ -330,7 +336,6 @@ func (rc *RunContext) EvalBool(expr string) (bool, error) {
 				!strings.Contains(part, "!")) && // but it's not negated
 				interpolatedPart == "false" && // and the interpolated string is false
 				(isString || previousOrNextPartIsAnOperator(i, parts)) { // and it's of type string or has an logical operator before or after
-
 				interpolatedPart = fmt.Sprintf("'%s'", interpolatedPart) // then we have to quote the false expression
 			}
 
